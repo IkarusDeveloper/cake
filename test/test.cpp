@@ -84,8 +84,11 @@ bool TestWeakPtr() {
 }
 
 bool TestProxyPtr() {
+    struct ProxableStringBase {};
+
     struct ProxableString
-        : public cake::enable_proxy_from_this<ProxableString> {
+        : public ProxableStringBase,
+          public cake::enable_proxy_from_this<ProxableString> {
         std::string str;
     };
 
@@ -103,6 +106,14 @@ bool TestProxyPtr() {
     TEST_ASSERT(copy_ps.get() != nullptr);
     TEST_ASSERT(copy_ps.alive());
     TEST_ASSERT(copy_ps->str == "prettystring");
+
+    // testing proxy_from_base
+    auto bps = string.proxy_from_base<ProxableStringBase>();
+    TEST_ASSERT(bps.get() != nullptr);
+    TEST_ASSERT(bps.alive());
+
+    // getting back derived from base
+    auto dps = cake::static_pointer_cast<ProxableString>(bps);
 
     // destroying all proxy
     string.proxy_delete();

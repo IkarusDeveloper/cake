@@ -642,15 +642,15 @@ namespace cake {
 
     // defining smart pointer casts
     template <class T, owner_smart_ptr SP>
-    cast_dest_type<SP, T> static_pointer_cast(const SP& r) noexcept {
-        using destination_type = cast_dest_type<SP, T>;
+    cast_dest_type<SP, T>::type static_pointer_cast(const SP& r) noexcept {
+        using destination_type = typename cast_dest_type<SP, T>::type;
         auto p = static_cast<typename destination_type::Type*>(r.get());
         return destination_type{p, r};
     }
 
     template <class T, owner_smart_ptr SP>
-    cast_dest_type<SP, T> dynamic_pointer_cast(const SP& r) noexcept {
-        using destination_type = cast_dest_type<SP, T>;
+    cast_dest_type<SP, T>::type dynamic_pointer_cast(const SP& r) noexcept {
+        using destination_type = typename cast_dest_type<SP, T>::type;
         if (auto p = dynamic_cast<typename destination_type::Type*>(r.get()))
             return destination_type{p, r};
         else
@@ -658,15 +658,15 @@ namespace cake {
     }
 
     template <class T, owner_smart_ptr SP>
-    cast_dest_type<SP, T> const_pointer_cast(const SP& r) noexcept {
-        using destination_type = cast_dest_type<SP, T>;
+    cast_dest_type<SP, T>::type const_pointer_cast(const SP& r) noexcept {
+        using destination_type = typename cast_dest_type<SP, T>::type;
         auto p = const_cast<typename destination_type::Type*>(r.get());
         return destination_type{p, r};
     }
 
     template <class T, owner_smart_ptr SP>
-    cast_dest_type<SP, T> reinterpret_pointer_cast(const SP& r) noexcept {
-        using destination_type = cast_dest_type<SP, T>;
+    cast_dest_type<SP, T>::type reinterpret_pointer_cast(const SP& r) noexcept {
+        using destination_type = typename cast_dest_type<SP, T>::type;
         auto p = reinterpret_cast<typename destination_type::Type*>(r.get());
         return destination_type{p, r};
     }
