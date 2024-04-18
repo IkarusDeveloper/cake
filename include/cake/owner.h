@@ -124,6 +124,7 @@ namespace cake {
                 _alive = false;
                 return _ptr;
             }
+            void switch_ptr(void* ptr) { _ptr = ptr; }
 
     #ifdef CAKE_OWNER_THREAD_SAFE
             owner_shared_lock shared_lock() { return owner_shared_lock{_mtx}; }
@@ -291,13 +292,11 @@ namespace cake {
             return !(_Right < *this);
         }
 
-        Type* hashkey() const {
-            if (!_is_Pointing())
-                return nullptr;
-            return static_cast<Type*>(_ppobj->get());
-        }
+        const void* hashkey() const { return static_cast<const void*>(_ppobj); }
 
-        Type* get() const { return alive() ? hashkey() : nullptr; }
+        Type* get() const {
+            return alive() ? static_cast<Type*>(_ppobj->get()) : nullptr;
+        }
 
         template <class Type2 = Type,
                   class = std::enable_if_t<!CAKE_IS_ARRAY(Type2)>>
@@ -673,6 +672,23 @@ namespace cake {
 
     template <class Type> class proxy_parent_base {
        public:
+        // move constructor helping on reallocation of vectors
+        // which transfer proxy_ptr generated from old parent to the new one
+        proxy_parent_base(proxy_parent_base&& other) {
+    #ifdef CAKE_OWNER_THREAD_SAFE
+            // locking object to avoid accessing it while switching
+            auto guard = lock();
+    #endif
+            _proxyGeneratorPtr = other._proxyGeneratorPtr;
+            _proxyGeneratorPtr._state().switch_ptr(this);
+        }
+
+        // copy constructor (empty) in other to don't invalidate proxy_generator
+        proxy_parent_base(const proxy_parent_base& other) {}
+
+        // empty constructor default initialization
+        proxy_parent_base() = default;
+
         proxy_ptr<Type> proxy() { return _make_proxy(); }
         proxy_ptr<Type> proxy_from_this() { return _make_proxy(); }
     #ifdef CAKE_OWNER_THREAD_SAFE
