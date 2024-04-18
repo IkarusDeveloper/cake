@@ -1,6 +1,8 @@
 #define TEST_OWNER_THREAD_SAFE
 #include <iostream>
 #include <functional>
+#include <set>
+#include <unordered_set>
 #ifdef TEST_OWNER_THREAD_SAFE
     #include "../include/cake/owner_ts.h"
     #include <thread>
@@ -9,10 +11,10 @@
     #include "../include/cake/owner.h"
 #endif
 
-int g_passedTestCount = 0;
-int g_failedTestCount = 0;
+int g_passed_test_count = 0;
+int g_failed_test_count = 0;
 
-#define TEST(function) ExecuteTest(#function, function)
+#define TEST(function) execute_single_test(#function, function)
 #define TEST_ASSERT(condition)                                       \
     if (!(condition)) {                                              \
         std::cout << "ASSERTION FAILED ON LINE " << __LINE__ << ": " \
@@ -20,16 +22,16 @@ int g_failedTestCount = 0;
         return false;                                                \
     }
 
-void ExecuteTest(const std::string& name, std::function<bool()> func) {
+void execute_single_test(const std::string& name, std::function<bool()> func) {
     if (!func()) {
         std::cout << "FAILED TEST : " << name << std::endl;
-        g_failedTestCount++;
+        g_failed_test_count++;
         return;
     }
-    g_passedTestCount++;
+    g_passed_test_count++;
 }
 
-bool TestOwnerPtr() {
+bool test_owner_ptr() {
     // making an owner_ptr
     auto o1 = cake::make_owner<std::string>("prettystring");
     TEST_ASSERT(o1.get() != nullptr);
@@ -50,7 +52,7 @@ bool TestOwnerPtr() {
     return true;
 }
 
-bool TestWeakPtr() {
+bool test_weak_ptr() {
     cake::weak_ptr<std::string> weak;
     // making owner in another scope
     {
@@ -83,16 +85,16 @@ bool TestWeakPtr() {
     return true;
 }
 
-bool TestProxyPtr() {
-    struct ProxableStringBase {};
+bool test_proxy_ptr() {
+    struct proxable_string_base {};
 
-    struct ProxableString
-        : public ProxableStringBase,
-          public cake::enable_proxy_from_this<ProxableString> {
+    struct proxable_string
+        : public proxable_string_base,
+          public cake::enable_proxy_from_this<proxable_string> {
         std::string str;
     };
 
-    ProxableString string;
+    proxable_string string;
     string.str = "prettystring";
 
     // making a proxy
@@ -108,12 +110,12 @@ bool TestProxyPtr() {
     TEST_ASSERT(copy_ps->str == "prettystring");
 
     // testing proxy_from_base
-    auto bps = string.proxy_from_base<ProxableStringBase>();
+    auto bps = string.proxy_from_base<proxable_string_base>();
     TEST_ASSERT(bps.get() != nullptr);
     TEST_ASSERT(bps.alive());
 
     // getting back derived from base
-    auto dps = cake::static_pointer_cast<ProxableString>(bps);
+    auto dps = cake::static_pointer_cast<proxable_string>(bps);
 
     // destroying all proxy
     string.proxy_delete();
@@ -125,12 +127,12 @@ bool TestProxyPtr() {
     TEST_ASSERT(!copy_ps.alive());
 
     // testing for auto-deleting on destructor
-    cake::proxy_ptr<ProxableString> psa;
+    cake::proxy_ptr<proxable_string> psa;
 
     {
         // adding a new scope in order to call
         // destructor
-        ProxableString string2;
+        proxable_string string2;
         string2.str = "prettystring";
         psa = string2.proxy();
 
@@ -146,13 +148,13 @@ bool TestProxyPtr() {
 }
 
 #ifdef TEST_OWNER_THREAD_SAFE
-int RandomInt(int min, int max) {
+int random_integer(int min, int max) {
     static std::default_random_engine eng(std::random_device{}());
     std::uniform_int_distribution<int> dist(min, max);
     return dist(eng);
 }
 
-bool TestOwnerThreadSafe() {
+bool test_owner_thread_safe() {
     // event that makes 10 threads waiting one of them to destroy the object
     auto func = []() {
         auto owner = cake::make_owner<std::string>("prettystring");
@@ -167,14 +169,14 @@ bool TestOwnerThreadSafe() {
                         return;
 
                     // trying to delete via owner
-                    if (RandomInt(0, 10000) == 5) {
+                    if (random_integer(0, 1000) == 5) {
                         /*std::cout << "deleting via owner: thread id " << index
                                   << std::endl;*/
                         owner.owner_delete();
                     }
 
                     // trying to delete via weak
-                    else if (RandomInt(0, 10000) == 6) {
+                    else if (random_integer(0, 1000) == 6) {
                         /*std::cout << "deleting via weak: thread id " << index
                                   << std::endl;*/
                         if (auto temp_owner = cake::get_ownership(weak))
@@ -197,12 +199,116 @@ bool TestOwnerThreadSafe() {
 }
 #endif
 
-void PrintResults() {
-    if (g_failedTestCount == 0)
+bool test_cake_smart_pointers_key_set() {
+    // inserting owner_ptr into a set
+    auto owner_key = cake::make_owner<std::string>();
+    auto test_owner_set = std::set<cake::owner_ptr<std::string>>();
+    test_owner_set.emplace(owner_key);
+    // destroying the object
+    owner_key.owner_delete();
+    // checking the key still work
+    TEST_ASSERT(test_owner_set.contains(owner_key));
+
+    // insert weak_ptr into a set
+    auto obj = cake::make_owner<std::string>();
+    auto weak = cake::make_weak(obj);
+    std::set<cake::weak_ptr<std::string>> test_weak_set;
+    test_weak_set.emplace(weak);
+    // destroying the object
+    obj.owner_delete();
+    // checking the key still work
+    TEST_ASSERT(test_weak_set.contains(weak));
+
+    // insert proxy_ptr into a set
+    struct proxable_integer : cake::enable_proxy_from_this<proxable_integer> {
+        int value = 0;
+    };
+    std::set<cake::proxy_ptr<proxable_integer>> test_proxy_set;
+    cake::proxy_ptr<proxable_integer> proxy_key;
+    {
+        proxable_integer value;
+        proxy_key = value.proxy();
+        test_proxy_set.emplace(proxy_key);
+    }
+    // checking the key still work
+    TEST_ASSERT(test_proxy_set.contains(proxy_key));
+
+    return true;
+}
+
+bool test_cake_smart_pointers_key_unordered_set() {
+    // inserting owner_ptr into a set
+    auto owner_key = cake::make_owner<std::string>();
+    auto test_owner_set = std::unordered_set<cake::owner_ptr<std::string>>();
+    test_owner_set.emplace(owner_key);
+    // destroying the object
+    owner_key.owner_delete();
+    // checking the key still work
+    TEST_ASSERT(test_owner_set.contains(owner_key));
+
+    // insert weak_ptr into a set
+    auto obj = cake::make_owner<std::string>();
+    auto weak_key = cake::make_weak(obj);
+    std::unordered_set<cake::weak_ptr<std::string>> test_weak_set;
+    test_weak_set.emplace(weak_key);
+    // destroying the object
+    obj.owner_delete();
+    // checking the key still work
+    TEST_ASSERT(test_weak_set.contains(weak_key));
+
+    // insert proxy_ptr into a set
+    struct proxable_integer : cake::enable_proxy_from_this<proxable_integer> {
+        int value = 0;
+    };
+    std::unordered_set<cake::proxy_ptr<proxable_integer>> test_proxy_set;
+    cake::proxy_ptr<proxable_integer> proxy_key;
+    {
+        proxable_integer value;
+        proxy_key = value.proxy();
+        test_proxy_set.emplace(proxy_key);
+    }
+    // checking the key still work
+    TEST_ASSERT(test_proxy_set.contains(proxy_key));
+
+    return true;
+}
+
+bool test_proxy_parent_base_vector() {
+    struct proxable_string : cake::enable_proxy_from_this<proxable_string> {
+        // some compiler may require *move constructor* and *destructor* as
+        // noexcept!
+        /*proxable_string() = default;
+        proxable_string(const proxable_string&) = default;
+        proxable_string(proxable_string&&) noexcept = default;
+        ~proxable_string() noexcept = default;*/
+        std::string str;
+    };
+
+    // making vector with a size of 2
+    std::vector<proxable_string> strings;
+    strings.resize(2);
+
+    // storing proxy values into another vector
+    std::vector<cake::proxy_ptr<proxable_string>> proxy_vec;
+    for (auto& string : strings)
+        proxy_vec.emplace_back(string.proxy());
+
+    // increaseing the vector size making it reallocating the elements
+    strings.resize(2000);
+
+    // checking all the proxy are keep alive
+    auto alive_check = [](auto& proxy) { return proxy.alive(); };
+    TEST_ASSERT(std::all_of(proxy_vec.begin(), proxy_vec.end(), alive_check));
+
+    return true;
+}
+
+void print_test_results() {
+    if (g_failed_test_count == 0)
         std::cout << "All tests are passed." << std::endl;
     else {
-        std::cout << "Passed Tests: " << g_passedTestCount << std::endl;
-        std::cout << "Failed tests: " << g_failedTestCount << std::endl;
+        std::cout << "Passed Tests: " << g_passed_test_count << std::endl;
+        std::cout << "Failed tests: " << g_failed_test_count << std::endl;
     }
 }
 
@@ -210,17 +316,19 @@ int main() {
     std::cout << "Starting the tests..." << std::endl;
 
     // executing all tests
-    TEST(TestOwnerPtr);
-    TEST(TestWeakPtr);
-    TEST(TestProxyPtr);
-
+    TEST(test_owner_ptr);
+    TEST(test_weak_ptr);
+    TEST(test_proxy_ptr);
 #ifdef TEST_OWNER_THREAD_SAFE
-    TEST(TestOwnerThreadSafe);
+    TEST(test_owner_thread_safe);
 #endif
+    TEST(test_cake_smart_pointers_key_set);
+    TEST(test_cake_smart_pointers_key_unordered_set);
+    TEST(test_proxy_parent_base_vector);
 
     // printing test results
     std::cout << "All tests executed." << std::endl;
-    PrintResults();
+    print_test_results();
 
     // pausing the program
     std::cout << "Press ENTER to close." << std::endl;
