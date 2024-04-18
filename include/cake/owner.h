@@ -674,20 +674,23 @@ namespace cake {
        public:
         // move constructor helping on reallocation of vectors
         // which transfer proxy_ptr generated from old parent to the new one
-        proxy_parent_base(proxy_parent_base&& other) {
+        proxy_parent_base(proxy_parent_base&& other) noexcept {
     #ifdef CAKE_OWNER_THREAD_SAFE
             // locking object to avoid accessing it while switching
             auto guard = lock();
     #endif
-            _proxyGeneratorPtr = other._proxyGeneratorPtr;
-            _proxyGeneratorPtr._state().switch_ptr(this);
+            if (other._proxyGeneratorPtr) {
+                _proxyGeneratorPtr = other._proxyGeneratorPtr;
+                _proxyGeneratorPtr._state()->switch_ptr(this);
+                other._proxyGeneratorPtr = nullptr;
+            }
         }
 
         // copy constructor (empty) in other to don't invalidate proxy_generator
-        proxy_parent_base(const proxy_parent_base& other) {}
+        proxy_parent_base(const proxy_parent_base& other) noexcept {}
 
         // empty constructor default initialization
-        proxy_parent_base() = default;
+        proxy_parent_base() noexcept = default;
 
         proxy_ptr<Type> proxy() { return _make_proxy(); }
         proxy_ptr<Type> proxy_from_this() { return _make_proxy(); }
@@ -701,7 +704,7 @@ namespace cake {
             return cake::static_pointer_cast<Derived>(_make_proxy());
         }
         void proxy_delete() { _proxyGeneratorPtr.owner_delete(); }
-        virtual ~proxy_parent_base() { proxy_delete(); }
+        virtual ~proxy_parent_base() noexcept { proxy_delete(); }
 
        private:
         proxy_ptr<Type> _make_proxy() {
