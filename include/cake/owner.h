@@ -746,6 +746,14 @@ namespace cake {
         return detail::make_owner<Ty, owner_atomic>::construct(Arguments...);
     }
 
+    template <class Ty> owner_ptr<Ty> make_owner_copy(const Ty& obj) {
+        return make_owner<Ty>(obj);
+    }
+
+    template <class Ty> owner_ptr<Ty> make_owner_copy_atomic(const Ty& obj) {
+        return make_owner_copy<Ty>(obj);
+    }
+
     template <class Type, class AtomicType> struct owner_factory {
         template <class... args>
         static cake::owner_ptr<Type, AtomicType> make(const args&... arg) {
