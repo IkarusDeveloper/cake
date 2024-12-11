@@ -641,14 +641,14 @@ namespace cake {
 
     // defining smart pointer casts
     template <class T, owner_smart_ptr SP>
-    cast_dest_type<SP, T>::type static_pointer_cast(const SP& r) noexcept {
+    typename cast_dest_type<SP, T>::type static_pointer_cast(const SP& r) noexcept {
         using destination_type = typename cast_dest_type<SP, T>::type;
         auto p = static_cast<typename destination_type::Type*>(r.get());
         return destination_type{p, r};
     }
 
     template <class T, owner_smart_ptr SP>
-    cast_dest_type<SP, T>::type dynamic_pointer_cast(const SP& r) noexcept {
+    typename cast_dest_type<SP, T>::type dynamic_pointer_cast(const SP& r) noexcept {
         using destination_type = typename cast_dest_type<SP, T>::type;
         if (auto p = dynamic_cast<typename destination_type::Type*>(r.get()))
             return destination_type{p, r};
@@ -657,14 +657,14 @@ namespace cake {
     }
 
     template <class T, owner_smart_ptr SP>
-    cast_dest_type<SP, T>::type const_pointer_cast(const SP& r) noexcept {
+    typename cast_dest_type<SP, T>::type const_pointer_cast(const SP& r) noexcept {
         using destination_type = typename cast_dest_type<SP, T>::type;
         auto p = const_cast<typename destination_type::Type*>(r.get());
         return destination_type{p, r};
     }
 
     template <class T, owner_smart_ptr SP>
-    cast_dest_type<SP, T>::type reinterpret_pointer_cast(const SP& r) noexcept {
+    typename cast_dest_type<SP, T>::type reinterpret_pointer_cast(const SP& r) noexcept {
         using destination_type = typename cast_dest_type<SP, T>::type;
         auto p = reinterpret_cast<typename destination_type::Type*>(r.get());
         return destination_type{p, r};
@@ -859,15 +859,13 @@ CAKE_NO_DISCARD bool operator!=(const typename SP::Type* _Left,
 template <cake::owner_smart_ptr SP>
 CAKE_NO_DISCARD bool operator<(const SP& _Left,
                                const typename SP::Type* const _Right) {
-    using _Ptr = typename SP::pointer;
-    return std::less<_Ptr>()(_Left.hashkey(), _Right);
+    return std::less<const typename SP::Type*>()(_Left.hashkey(), _Right);
 }
 
 template <cake::owner_smart_ptr SP>
 CAKE_NO_DISCARD bool operator<(const typename SP::Type* const _Left,
                                const SP& _Right) {
-    using _Ptr = typename SP::pointer;
-    return std::less<_Ptr>()(_Left, _Right.hashkey());
+    return std::less<const typename SP::Type*>()(_Left, _Right.hashkey());
 }
 
 template <cake::owner_smart_ptr SP>
