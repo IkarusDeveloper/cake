@@ -202,6 +202,9 @@ namespace cake {
 
     template <class _RTy, valid_atomic_flag AtomicTypeFlag = owner_non_atomic>
     class owner_ptr {
+#if defined(_DEBUG) || defined(CAKE_DEBUG)
+        _RTy* debug_PTR = nullptr;
+#endif
        public:
         using Type = detail::extract_owner_type<_RTy>;
 
@@ -218,6 +221,9 @@ namespace cake {
             _ppobj = _ptr;
             if (_ppobj)
                 _ppobj->inc_ref();
+#if defined(_DEBUG) || defined(CAKE_DEBUG)
+            debug_PTR = get();
+#endif
         }
 
        public:
@@ -391,6 +397,9 @@ namespace cake {
             _ppobj = n;
             if (_ppobj)
                 _ppobj->inc_ref();
+#if defined(_DEBUG) || defined(CAKE_DEBUG)
+            debug_PTR = get();
+#endif
         }
 
        private:
@@ -408,6 +417,9 @@ namespace cake {
         template <class _RTy, valid_atomic_flag AtomicTypeFlag,
                   valid_ownership OwnershipLink>
         class no_owner_ptr {
+#if defined(_DEBUG) || defined(CAKE_DEBUG)
+            _RTy* debug_PTR = nullptr;
+#endif
            public:
             using Type = detail::extract_owner_type<_RTy>;
             detail::_owner_common_state_base<AtomicTypeFlag>* _state() const {
@@ -565,6 +577,9 @@ namespace cake {
                 _ppobj = n;
                 if (_ppobj)
                     _ppobj->inc_weak_ref();
+#if defined(_DEBUG) || defined(CAKE_DEBUG)
+                debug_PTR = get();
+#endif
             }
 
            private:
@@ -720,8 +735,8 @@ namespace cake {
     namespace detail {
         template <class Ty, class Atomic> struct make_owner {
             template <class... args>
-            static owner_ptr<Ty, Atomic> construct(const args&... va) {
-                return owner_ptr<Ty, Atomic>{new Ty(va...)};
+            static owner_ptr<Ty, Atomic> construct(args&&... va) {
+                return owner_ptr<Ty, Atomic>{new Ty(std::forward<args>(va)...)};
             }
         };
 
@@ -734,16 +749,16 @@ namespace cake {
 
     template <class Ty, class... Args>
     std::enable_if_t<detail::is_owner_valid_type<Ty>, owner_ptr<Ty>> make_owner(
-        const Args&... Arguments) {
+        Args&&... Arguments) {
         return detail::make_owner<Ty, owner_non_atomic>::construct(
-            Arguments...);
+            std::forward<Args>(Arguments)...);
     }
 
     template <class Ty, class... Args>
     std::enable_if_t<detail::is_owner_valid_type<Ty>,
                      owner_ptr<Ty, owner_atomic>>
-    make_owner_atomic(const Args&... Arguments) {
-        return detail::make_owner<Ty, owner_atomic>::construct(Arguments...);
+    make_owner_atomic(Args&&... Arguments) {
+        return detail::make_owner<Ty, owner_atomic>::construct(std::forward<Args>(Arguments)...);
     }
 
     template <class Ty> owner_ptr<Ty> make_owner_copy(const Ty& obj) {
@@ -756,8 +771,8 @@ namespace cake {
 
     template <class Type, class AtomicType> struct owner_factory {
         template <class... args>
-        static cake::owner_ptr<Type, AtomicType> make(const args&... arg) {
-            return detail::make_owner<Type, AtomicType>::construct(arg...);
+        static cake::owner_ptr<Type, AtomicType> make(args&&... arg) {
+            return detail::make_owner<Type, AtomicType>::construct(std::forward<args>(arg)...);
         }
     };
 
